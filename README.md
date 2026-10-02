@@ -28,7 +28,7 @@
 # Zerow Fitness Class Booking System
 
 ## Live deployment
-Public URL: http://<EC2-public-ip>
+Public URL: http://3.107.194.166
 
 ## Features
 - Member: register, login, view schedule, view detail, book, cancel booking
@@ -41,9 +41,12 @@ React frontend → Nginx → Express API → MongoDB Atlas
 1. npm install
 2. npm install --prefix backend
 3. npm install --prefix frontend
-4. Configure backend/.env
-5. npm run seed:admin --prefix backend
-6. npm run dev
+4. npm run seed:admin --prefix backend
+5. npm run dev
+
+## Creadentials - Admin
+Email: admin@zerowgym.com
+Password: ZerowAdmin2026!
 
 ## Environment variables
 MONGO_URI
