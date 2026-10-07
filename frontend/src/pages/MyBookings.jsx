@@ -1,53 +1,38 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import axiosInstance from "../axiosConfig";
 
-const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-const pad = (number) => String(number).padStart(2, "0");
-
-// Local-time YYYY-MM-DD key, used to group bookings by calendar day.
-const toDateKey = (date) =>
-  `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-
-// Monday of the week containing the given date.
-const startOfWeek = (date) => {
-  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
-  return start;
+const toDateInput = (date) => {
+  const offsetDate = new Date(
+    date.getTime() - date.getTimezoneOffset() * 60000,
+  );
+  return offsetDate.toISOString().slice(0, 10);
 };
 
-const addDays = (date, days) => {
-  const next = new Date(date);
-  next.setDate(next.getDate() + days);
-  return next;
-};
-
-const formatHeading = (date) =>
-  `${DAY_LABELS[(date.getDay() + 6) % 7]} ${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
-
-const formatTime = (date) =>
-  new Date(date).toLocaleTimeString("en-AU", {
+const formatClassTime = (date) =>
+  new Date(date).toLocaleString("en-AU", {
+    weekday: "short",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
     hour: "numeric",
     minute: "2-digit",
   });
 
-const isPast = (fitnessClass) => new Date(fitnessClass.date) <= new Date();
-
 const MyBookings = () => {
   const { user } = useAuth();
+  const [selectedDate, setSelectedDate] = useState(toDateInput(new Date()));
   const [bookings, setBookings] = useState([]);
-  const [selectedDate, setSelectedDate] = useState(new Date());
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
   const loadBookings = useCallback(async () => {
     if (!user) return;
     setLoading(true);
+    setMessage("");
     try {
       const response = await axiosInstance.get("/api/classes", {
-        params: { mine: "true" },
+        params: { mine: "true", date: selectedDate },
         headers: { Authorization: `Bearer ${user.token}` },
       });
       setBookings(response.data);
@@ -58,7 +43,7 @@ const MyBookings = () => {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, selectedDate]);
 
   useEffect(() => {
     loadBookings();
@@ -75,7 +60,6 @@ const MyBookings = () => {
       setBookings((current) =>
         current.filter((item) => item._id !== fitnessClass._id),
       );
-      setMessage("Booking cancelled successfully.");
     } catch (error) {
       setMessage(
         error.response?.data?.message || "Your booking could not be cancelled.",
@@ -94,73 +78,23 @@ const MyBookings = () => {
       <div className="max-w-xl mx-auto p-6">Only members have bookings.</div>
     );
 
-  const weekStart = startOfWeek(selectedDate);
-  const weekDays = DAY_LABELS.map((label, index) => ({
-    label,
-    date: addDays(weekStart, index),
-  }));
-  const bookedDayKeys = new Set(
-    bookings.map((item) => toDateKey(new Date(item.date))),
-  );
-  const selectedKey = toDateKey(selectedDate);
-  const dayBookings = bookings.filter(
-    (item) => toDateKey(new Date(item.date)) === selectedKey,
-  );
-
   return (
-    <main className="max-w-2xl mx-auto p-4 md:p-8">
+    <main className="max-w-5xl mx-auto p-4 md:p-8">
       <h1 className="text-3xl font-bold text-slate-800">My Bookings</h1>
+      <p className="text-slate-600 mt-1">
+        Choose a day to see the classes you have booked.
+      </p>
 
       <section className="mt-6 bg-white p-4 rounded shadow-sm">
-        <div className="flex items-center justify-between">
-          <button
-            type="button"
-            aria-label="Previous week"
-            onClick={() => setSelectedDate(addDays(selectedDate, -7))}
-            className="px-3 py-1 rounded hover:bg-slate-100"
-          >
-            &lt;
-          </button>
-          <h2 className="font-semibold text-slate-700">
-            {selectedDate.toLocaleString("en-AU", {
-              month: "long",
-              year: "numeric",
-            })}
-          </h2>
-          <button
-            type="button"
-            aria-label="Next week"
-            onClick={() => setSelectedDate(addDays(selectedDate, 7))}
-            className="px-3 py-1 rounded hover:bg-slate-100"
-          >
-            &gt;
-          </button>
-        </div>
-
-        <div className="mt-4 grid grid-cols-7 text-center">
-          {weekDays.map(({ label, date }) => {
-            const key = toDateKey(date);
-            const isSelected = key === selectedKey;
-            return (
-              <button
-                type="button"
-                key={key}
-                onClick={() => setSelectedDate(date)}
-                className="py-1"
-              >
-                <div className="text-xs text-slate-500">{label}</div>
-                <div
-                  className={`mx-auto mt-1 w-9 h-9 flex items-center justify-center rounded-full ${isSelected ? "bg-blue-600 text-white" : "hover:bg-slate-100"}`}
-                >
-                  {pad(date.getDate())}
-                </div>
-                <div
-                  className={`mx-auto mt-1 w-1.5 h-1.5 rounded-full ${bookedDayKeys.has(key) ? "bg-red-500" : "bg-transparent"}`}
-                />
-              </button>
-            );
-          })}
-        </div>
+        <label className="font-medium text-slate-700">
+          Date
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={(event) => setSelectedDate(event.target.value)}
+            className="mt-1 w-full p-2 border rounded"
+          />
+        </label>
       </section>
 
       {message && (
@@ -168,71 +102,63 @@ const MyBookings = () => {
       )}
       {loading && <p className="mt-4">Loading bookings...</p>}
 
-      <h2 className="mt-6 mb-3 font-semibold text-slate-700">
-        {formatHeading(selectedDate)}
-      </h2>
-      {!loading && dayBookings.length === 0 && (
-        <p className="text-slate-600">You have no bookings on this day.</p>
-      )}
-
-      <div className="space-y-3">
-        {dayBookings.map((fitnessClass) => (
-          <article
-            key={fitnessClass._id}
-            className="bg-white border rounded p-4 flex items-center gap-4"
-          >
-            {fitnessClass.imageUrl && (
-              <img
-                src={fitnessClass.imageUrl}
-                alt={fitnessClass.title}
-                className="w-16 h-16 object-cover rounded"
-              />
-            )}
-            <div className="flex-1">
-              <strong className="text-lg">{fitnessClass.title}</strong>
-              <p className="text-sm text-slate-600">
-                {fitnessClass.location} · Instructor {fitnessClass.instructor}
-              </p>
-              <p className="text-sm text-slate-600">
-                {formatTime(fitnessClass.date)} · {fitnessClass.duration}
-              </p>
-            </div>
-            <div className="text-right">
-              {isPast(fitnessClass) && (
-                <span className="text-xs px-2 py-1 rounded bg-slate-200 text-slate-600">
-                  Past
-                </span>
-              )}
-              {!isPast(fitnessClass) && (
-                <span className="text-xs px-2 py-1 rounded bg-green-100 text-green-800">
-                  Upcoming
-                </span>
-              )}
-              {!isPast(fitnessClass) &&
-                (fitnessClass.canCancel ? (
-                  <button
-                    type="button"
-                    onClick={() => handleCancel(fitnessClass)}
-                    className="block mt-2 bg-red-600 text-white px-3 py-2 rounded text-sm"
-                  >
-                    Cancel Booking
-                  </button>
-                ) : (
-                  <p className="mt-2 text-xs text-slate-500">
-                    Cancellation closed
+      <section className="mt-6">
+        <h2 className="text-xl font-semibold mb-3">Booked classes</h2>
+        {!loading && bookings.length === 0 && (
+          <p className="text-slate-600">You have no bookings on this date.</p>
+        )}
+        <div className="space-y-3">
+          {bookings.map((fitnessClass) => {
+            const past = new Date(fitnessClass.date) <= new Date();
+            return (
+              <article
+                key={fitnessClass._id}
+                className="bg-white border rounded p-4 flex items-center gap-4"
+              >
+                {fitnessClass.imageUrl && (
+                  <img
+                    src={fitnessClass.imageUrl}
+                    alt={fitnessClass.title}
+                    className="w-16 h-16 object-cover rounded"
+                  />
+                )}
+                <div className="flex-1">
+                  <div className="flex gap-3 items-center">
+                    <strong>{fitnessClass.title}</strong>
+                    <span
+                      className={past ? "text-slate-500" : "text-green-700"}
+                    >
+                      {past ? "Past" : "Upcoming"}
+                    </span>
+                  </div>
+                  <p className="text-sm text-slate-600 mt-1">
+                    {formatClassTime(fitnessClass.date)} ·{" "}
+                    {fitnessClass.duration}
                   </p>
-                ))}
-            </div>
-          </article>
-        ))}
-      </div>
-
-      <Link
-        to="/schedule"
-        className="mt-8 block text-center bg-blue-600 text-white p-3 rounded hover:bg-blue-700"
-      >
-        View class calendar
-      </Link>
+                  <p className="text-sm text-slate-600">
+                    {fitnessClass.location} · Instructor{" "}
+                    {fitnessClass.instructor}
+                  </p>
+                </div>
+                {!past &&
+                  (fitnessClass.canCancel ? (
+                    <button
+                      type="button"
+                      onClick={() => handleCancel(fitnessClass)}
+                      className="bg-red-600 text-white px-3 py-2 rounded"
+                    >
+                      Cancel booking
+                    </button>
+                  ) : (
+                    <p className="text-sm text-slate-500">
+                      Cancellation closed
+                    </p>
+                  ))}
+              </article>
+            );
+          })}
+        </div>
+      </section>
     </main>
   );
 };
