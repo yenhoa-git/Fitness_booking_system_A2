@@ -4,6 +4,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Schedule from './pages/Schedule';
 import AdminClasses from './pages/AdminClasses';
+import Profile from './pages/Profile';
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/" element={<Schedule />} />
         <Route path="/schedule" element={<Schedule />} />
+        <Route path="/profile" element={<Profile />} />
         <Route path="/admin/classes" element={<AdminClasses />} />
       </Routes>
     </Router>
