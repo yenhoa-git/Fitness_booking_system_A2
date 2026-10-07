@@ -23,7 +23,7 @@ const Navbar = () => {
             </Link>
             {user.role === 'member' && <Link to="/profile" className="mr-4">Profile</Link>}
             {user.role === "member" && (
-              <Link to="/bookings" className="mr-4">
+              <Link to="/my-bookings" className="mr-4">
                 My Bookings
               </Link>
             )}
