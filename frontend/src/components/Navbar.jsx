@@ -21,6 +21,7 @@ const Navbar = () => {
             <Link to="/schedule" className="mr-4">
               Schedule
             </Link>
+            {user.role === 'member' && <Link to="/profile" className="mr-4">Profile</Link>}
             {user.role === "member" && (
               <Link to="/bookings" className="mr-4">
                 My Bookings
