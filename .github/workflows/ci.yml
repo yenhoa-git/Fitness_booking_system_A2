@@ -1,0 +1,124 @@
+name: Backend CI # Name of the CI/CD workflow
+
+on: # Events that trigger the workflow
+  push:
+    branches:
+      - develop # Integration branch: run CI + deploy when a feature PR is merged
+      - main # Release branch: run CI + deploy when develop is merged into main
+  pull_request:
+    branches:
+      - develop # Run CI (tests only) on every feature/* PR into develop
+      - main # Run CI (tests only) on the develop -> main release PR
+
+permissions:
+  contents: read # Least-privilege GITHUB_TOKEN (Week 4: GitHub Token Permissions)
+
+jobs:
+  # ---------------------------------------------------------------
+  # Job 1: CI - run backend unit tests on every push and Pull Request
+  # Runs on a GitHub-hosted runner so PR code never touches the live EC2 folder.
+  # Tests stub the database (Sinon), so no secrets are needed here.
+  # ---------------------------------------------------------------
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [22] # Same Node.js version as EC2
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4 # Clone the repository code to the runner
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install Backend Dependencies
+        working-directory: ./backend
+        run: npm install
+
+      - name: Run Backend Tests
+        working-directory: ./backend
+        run: npm test # Mocha + Chai + Sinon tests in backend/test
+
+  # ---------------------------------------------------------------
+  # Job 2: CD - deploy to EC2 (self-hosted runner)
+  # Only runs on a push to develop or main (i.e. after a PR is merged) and only if tests passed.
+  # ---------------------------------------------------------------
+  deploy:
+    name: Deploy to EC2
+    needs: test # Do not deploy unless "Run Tests" passed
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main')
+    runs-on: self-hosted # EC2 #1 runner (Tutorial 6, Phase 3)
+    environment: MONGO_URI # GitHub environment holding MONGO_URI, JWT_SECRET, PORT
+
+    concurrency:
+      group: deploy-ec2 # Never run two deployments at the same time (Week 4: Concurrency)
+      cancel-in-progress: false
+
+    strategy:
+      matrix:
+        node-version: [22]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Print Env Secret
+        env:
+          MONGO_URI: ${{ secrets.MONGO_URI }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          PORT: ${{ secrets.PORT }}
+        run: |
+          echo "Secret 1 is: $MONGO_URI"
+          echo "Secret 2 is: $JWT_SECRET"
+          echo "Secret 3 is: $PORT"
+
+      - name: Stop Running Services
+        run: pm2 stop all || true # "|| true" = don't fail on the very first run when no pm2 apps exist yet
+
+      - name: Install Backend Dependencies
+        working-directory: ./backend
+        run: |
+          npm install --global yarn
+          yarn --version
+          yarn install
+
+      - name: Install Frontend Dependencies and Build
+        working-directory: ./frontend
+        env:
+          CI: false # GitHub sets CI=true, which makes React treat ESLint warnings as build errors
+        run: |
+          df -h
+          sudo rm -rf ./build
+          yarn install
+          yarn run build
+
+      - name: Install Root Dependencies
+        run: npm ci
+
+      - name: Create Production .env
+        env:
+          PROD: ${{ secrets.PROD }} # Pass the secret as an env var so special characters ($, `) in passwords are not run by the shell
+        run: |
+          cd ./backend
+          touch .env
+          printf '%s\n' "$PROD" > .env
+
+      - name: Start Services
+        run: pm2 start all
+
+      - name: Restart Services
+        run: pm2 restart all
+
+      - name: Bring Services Back If Deploy Failed
+        if: failure() # If any deploy step failed after pm2 stop, restart the previous version
+        run: pm2 restart all
