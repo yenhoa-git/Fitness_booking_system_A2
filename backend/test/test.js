@@ -6,8 +6,13 @@ const connectDB = require('../config/db');
 const mongoose = require('mongoose');
 const sinon = require('sinon');
 const Class = require('../models/Class');
-const { createClass, updateClass, getClasses, cancelClass } = require('../controllers/classController');
+const { createClass, updateClass, getClasses, cancelClass} = require('../controllers/classController');
 const { expect } = chai;
+
+const bcrypt = require('bcrypt');
+const User = require('../models/User');
+const { updatePassword } = require('../controllers/authController');
+
 
 chai.use(chaiHttp);
 let server;
@@ -342,4 +347,61 @@ describe('CancelClass Function Test', () => {
     deleteStub.restore();
   });
 
+});
+
+describe('Change Password Function Test', () => {
+  it('should return 400 when the current password is incorrect', async () => {
+    const user = {
+      password: await bcrypt.hash('CorrectPassword123', 10),
+      save: sinon.stub(),
+    };
+
+    const findUserStub = sinon.stub(User, 'findById').resolves(user);
+    const req = {
+      user: { id: new mongoose.Types.ObjectId() },
+      body: {
+        oldPassword: 'WrongPassword123',
+        newPassword: 'NewPassword123',
+      },
+    };
+    const res = { status: sinon.stub().returnsThis(), json: sinon.spy() };
+
+    await updatePassword(req, res);
+
+    expect(res.status.calledWith(400)).to.be.true;
+    expect(res.json.calledWith({
+      message: 'Current password is incorrect',
+    })).to.be.true;
+    expect(user.save.called).to.be.false;
+
+    findUserStub.restore();
+  });
+
+  it('should update password when the current password is correct', async () => {
+    const user = {
+      password: await bcrypt.hash('CorrectPassword123', 10),
+      save: sinon.stub().resolves(),
+    };
+
+    const findUserStub = sinon.stub(User, 'findById').resolves(user);
+    const req = {
+      user: { id: new mongoose.Types.ObjectId() },
+      body: {
+        oldPassword: 'CorrectPassword123',
+        newPassword: 'NewPassword123',
+      },
+    };
+    const res = { status: sinon.stub().returnsThis(), json: sinon.spy() };
+
+    await updatePassword(req, res);
+
+    expect(res.status.calledWith(200)).to.be.true;
+    expect(res.json.calledWith({
+      message: 'Password updated successfully',
+    })).to.be.true;
+    expect(user.password).to.equal('NewPassword123');
+    expect(user.save.calledOnce).to.be.true;
+
+    findUserStub.restore();
+  });
 });
