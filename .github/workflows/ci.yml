@@ -11,7 +11,7 @@ on: # Events that trigger the workflow
       - main # Run CI (tests only) on the develop -> main release PR
 
 permissions:
-  contents: read # Least-privilege GITHUB_TOKEN (Week 4: GitHub Token Permissions)
+  contents: read # Least-privilege GITHUB_TOKEN
 
 jobs:
   # ---------------------------------------------------------------
@@ -52,11 +52,11 @@ jobs:
     name: Deploy to EC2
     needs: test # Do not deploy unless "Run Tests" passed
     if: github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main')
-    runs-on: self-hosted # EC2 #1 runner (Tutorial 6, Phase 3)
+    runs-on: self-hosted # EC2 #1 runner
     environment: MONGO_URI # GitHub environment holding MONGO_URI, JWT_SECRET, PORT
 
     concurrency:
-      group: deploy-ec2 # Never run two deployments at the same time (Week 4: Concurrency)
+      group: deploy-ec2 # Never run two deployments at the same time
       cancel-in-progress: false
 
     strategy:
