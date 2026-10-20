@@ -1,0 +1,7 @@
+name: A2 Local Environment
+values:
+  - key: baseUrl
+    value: ''
+  - key: jwt_token
+    value: ''
+color: 120

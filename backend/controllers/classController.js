@@ -1,4 +1,6 @@
 const Class = require("../models/Class");
+const { checkCancellation } = require("../services/CancellationChain");
+const MemberListProxy = require("../services/MemberListProxy");
 
 const requiredFields = [
   "title",
@@ -38,7 +40,7 @@ const classResponse = (fitnessClass, userId) => {
     remainingCapacity: Math.max(item.capacity - attendeeIds.length, 0),
     isFull: attendeeIds.length >= item.capacity,
     isBooked,
-    canCancel: isBooked && new Date(item.date) > new Date(),
+    canCancel: isBooked && !checkCancellation(item.date),
   };
 };
 
@@ -101,12 +103,9 @@ const updateClass = async (req, res) => {
     if (!fitnessClass)
       return res.status(404).json({ message: "Class not found" });
     if (Number(req.body.capacity) < fitnessClass.attendees.length) {
-      return res
-        .status(400)
-        .json({
-          message:
-            "Capacity cannot be lower than the current number of bookings",
-        });
+      return res.status(400).json({
+        message: "Capacity cannot be lower than the current number of bookings",
+      });
     }
 
     Object.assign(fitnessClass, {
@@ -165,13 +164,9 @@ const cancelBooking = async (req, res) => {
     const existingClass = await Class.findById(req.params.id);
     if (!existingClass)
       return res.status(404).json({ message: "Class not found" });
-    if (existingClass.date <= new Date()) {
-      return res
-        .status(400)
-        .json({
-          message: "Bookings cannot be cancelled after the class has started",
-        });
-    }
+    const rejection = checkCancellation(existingClass.date);
+    if (rejection)
+      return res.status(rejection.status).json({ message: rejection.message });
 
     const updatedClass = await Class.findOneAndUpdate(
       { _id: req.params.id, attendees: req.user._id },
@@ -188,6 +183,18 @@ const cancelBooking = async (req, res) => {
   }
 };
 
+// FR03 / NFR03: admin views the members of a class
+const getClassMembers = async (req, res) => {
+  try {
+    const memberList = await new MemberListProxy().getMembers(req.user, req.params.id);
+    if (!memberList) return res.status(404).json({ message: "Class not found" });
+    return res.status(200).json(memberList);
+  } catch (error) {
+    if (error.statusCode === 403) return res.status(403).json({ message: error.message });
+    return res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   getClasses,
   getClassById,
@@ -196,4 +203,5 @@ module.exports = {
   cancelClass,
   bookClass,
   cancelBooking,
+  getClassMembers,
 };

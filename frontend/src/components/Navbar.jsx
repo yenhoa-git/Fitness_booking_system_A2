@@ -12,7 +12,7 @@ const Navbar = () => {
 
   return (
     <nav className="bg-blue-600 text-white p-4 flex justify-between items-center">
-      <Link to="/" className="text-2xl font-bold">
+      <Link to={user ? "/schedule" : "/login"} className="text-2xl font-bold">
         Zerow Gym
       </Link>
       <div>
@@ -21,8 +21,9 @@ const Navbar = () => {
             <Link to="/schedule" className="mr-4">
               Schedule
             </Link>
+            {user.role === 'member' && <Link to="/profile" className="mr-4">Profile</Link>}
             {user.role === "member" && (
-              <Link to="/bookings" className="mr-4">
+              <Link to="/my-bookings" className="mr-4">
                 My Bookings
               </Link>
             )}

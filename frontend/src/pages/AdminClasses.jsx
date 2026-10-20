@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import axiosInstance from "../axiosConfig";
+import ClassMembersTable from "../components/ClassMembersTable";
 
 const emptyForm = () => ({
   title: "",
@@ -27,6 +28,7 @@ const AdminClasses = () => {
   const [form, setForm] = useState(emptyForm());
   const [editingId, setEditingId] = useState(null);
   const [message, setMessage] = useState("");
+  const [membersClassId, setMembersClassId] = useState(null);
 
   const token = user?.token;
   const headers = { Authorization: `Bearer ${token}` };
@@ -253,32 +255,50 @@ const AdminClasses = () => {
           {classes.map((fitnessClass) => (
             <article
               key={fitnessClass._id}
-              className="bg-white rounded border p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+              className="bg-white rounded border p-4"
             >
-              <div>
-                <h3 className="font-bold">{fitnessClass.title}</h3>
-                <p className="text-sm text-slate-600">
-                  {new Date(fitnessClass.date).toLocaleString("en-AU")} ·{" "}
-                  {fitnessClass.instructor} · {fitnessClass.attendeeCount}/
-                  {fitnessClass.capacity} booked
-                </p>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="font-bold">{fitnessClass.title}</h3>
+                  <p className="text-sm text-slate-600">
+                    {new Date(fitnessClass.date).toLocaleString("en-AU")} ·{" "}
+                    {fitnessClass.instructor} · {fitnessClass.attendeeCount}/
+                    {fitnessClass.capacity} booked
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => startEditing(fitnessClass)}
+                    className="bg-amber-500 text-white px-3 py-2 rounded"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setMembersClassId(
+                        membersClassId === fitnessClass._id ? null : fitnessClass._id,
+                      )
+                    }
+                    className="bg-slate-700 text-white px-3 py-2 rounded"
+                  >
+                    {membersClassId === fitnessClass._id ? "Hide members" : "View members"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => cancelClass(fitnessClass._id)}
+                    className="bg-red-600 text-white px-3 py-2 rounded"
+                  >
+                    Cancel class
+                  </button>
+                </div>
               </div>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => startEditing(fitnessClass)}
-                  className="bg-amber-500 text-white px-3 py-2 rounded"
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  onClick={() => cancelClass(fitnessClass._id)}
-                  className="bg-red-600 text-white px-3 py-2 rounded"
-                >
-                  Cancel class
-                </button>
-              </div>
+              {membersClassId === fitnessClass._id && (
+                <div className="mt-4">
+                  <ClassMembersTable classId={fitnessClass._id} token={token} />
+                </div>
+              )}
             </article>
           ))}
           {!classes.length && (

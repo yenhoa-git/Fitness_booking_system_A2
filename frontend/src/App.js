@@ -1,10 +1,16 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Schedule from "./pages/Schedule";
 import MyBookings from "./pages/MyBookings";
 import AdminClasses from "./pages/AdminClasses";
+import Profile from './pages/Profile';
 
 function App() {
   return (
@@ -13,9 +19,10 @@ function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/" element={<Schedule />} />
+        <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/schedule" element={<Schedule />} />
-        <Route path="/bookings" element={<MyBookings />} />
+        <Route path="/my-bookings" element={<MyBookings />} />
+        <Route path="/profile" element={<Profile />} />
         <Route path="/admin/classes" element={<AdminClasses />} />
       </Routes>
     </Router>
